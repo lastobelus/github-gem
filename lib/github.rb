@@ -4,11 +4,16 @@ require 'github/command'
 require 'github/helper'
 require 'github/ui'
 require 'fileutils'
+require "net/http"
+require 'net/https'
 require 'rubygems'
 require 'open-uri'
 require 'json'
 require 'yaml'
 require 'text/format'
+require 'xmlsimple'
+require "time"
+require 'mime/types'
 
 ##
 # Starting simple.
@@ -126,7 +131,7 @@ module GitHub
   end
 
   def debug(*messages)
-    puts *messages.map { |m| "== #{m}" } if debug?
+    puts messages.map { |m| "== #{m}" } if debug?
   end
 
   def learn(message)
