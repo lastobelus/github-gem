@@ -171,7 +171,7 @@ GitHub.command :default, :aliases => ['', '-h', 'help', '-help', '--help'] do
     ffmt = fmt.clone
     ffmt.body_indent += 2 # length of "% " and/or "--"
     GitHub.usage_descriptions[command].each do |usage_descriptions|
-      usage_descriptions.each do |usage|
+      usage_descriptions.each_line do |usage|
         usage_str = "%% %-#{flongest}s" % usage
         message << ffmt.format(usage_str)
       end
