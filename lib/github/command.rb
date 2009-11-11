@@ -99,8 +99,8 @@ module GitHub
           err = perr.read.strip
         end
 
-        replace @error = err if err.any?
-        replace @out = out if out.any?
+        replace @error = err if !err.empty?
+        replace @out = out if !out.empty?
 
         self
       end
