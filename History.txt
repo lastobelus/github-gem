@@ -1,3 +1,7 @@
+== 0.4.1
+
+Add 1.9.x compatibility.
+
 == 0.4.0
 
 Releasing to GemCutter!
