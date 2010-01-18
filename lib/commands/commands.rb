@@ -311,6 +311,12 @@ command :diff do
   git_exec "diff origin/#{branch}"
 end
 
+desc "Rebase local commits not yet pushed to github branch"
+command :rebase do
+  branch = helper.current_branch
+  git_exec "rebase -i origin/#{branch}"
+end
+
 desc "Search GitHub for the given repository name."
 usage "github search [query]"
 command :search do |query|
