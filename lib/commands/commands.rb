@@ -6,13 +6,15 @@ command :home do |user|
 end
 
 desc "Automatically set configuration info, or pass args to specify."
-usage "github config [my_username] [my_repo_name]"
-command :config do |user, repo|
+usage "github config [my_username] [my_repo_name] [my_token]"
+command :config do |user, repo, token|
   user ||= ENV['USER']
   repo ||= File.basename(FileUtils.pwd)
   git "config --global github.user #{user}"
   git "config github.repo #{repo}"
-  puts "Configured with github.user #{user}, github.repo #{repo}"
+  git "config --global github.token #{token}" unless token == ''
+  puts "Configured with github.user #{user}, github.repo #{repo}" +
+       (token ? ", github.token #{token}" : "")
 end
 
 desc "Open this repo in a web browser."
