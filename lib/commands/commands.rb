@@ -305,6 +305,12 @@ command :'push-branch' do
   git_exec "push origin #{branch}"
 end
 
+desc "Diff between local branch and github's version of the same branch"
+command :diff do
+  branch = helper.current_branch
+  git_exec "diff origin/#{branch}"
+end
+
 desc "Search GitHub for the given repository name."
 usage "github search [query]"
 command :search do |query|
