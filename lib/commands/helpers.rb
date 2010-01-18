@@ -181,6 +181,14 @@ helper :branch_dirty? do
   )
 end
 
+helper :branch_dirty_from_remote? do
+    branch = current_branch
+    branch_dirty? ||
+      !system("git diff --quiet origin/#{branch} 2>#{DEV_NULL}")
+end
+      
+      
+
 helper :tracking do
   remotes.inject({}) do |memo, (name, url)|
     if ur = user_and_repo_from(url)

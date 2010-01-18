@@ -161,9 +161,65 @@ command :clone do |user, repo, dir|
   end
 end
 
+desc "Generate a github pull-request"
+usage "github pull-request [user]"
+command :'pull-request' do |user|
+  if helper.project
+    die "Specify a user for the pull request" if user.nil?
+    branch = helper.current_branch
+    project = helper.project
+    if helper.branch_dirty_from_remote?
+      die "Current branch differs from remote branch of the same name. \n" +
+          "Perhaps you wish to \"git push\" or \"github push-branch\" first."
+    end
+    GitHub.invoke(:track, user) unless helper.tracking?(user)
+
+    # Open the editor and have them enter their pull-request message
+    message_file = (git "rev-parse --git-dir") + "/GitHubPullRequestMessage"
+
+    File.open(message_file, 'w') do |aFile|
+        aFile.puts ""
+        aFile.puts "# Please enter the pull-request message for your changes." +
+                   " Lines starting"
+        aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
+                   "the commit."
+        aFile.puts "#"
+        aFile.puts "#"
+        aFile.puts "# --------"
+        aFile.puts "#"
+
+        gitcommits = git "rev-list #{branch} --pretty"
+        gitcommits.each { |line|
+            aFile.puts "# #{line}"
+        }
+    end
+
+    system "#{editor} '#{message_file}'"
+    message_content = ""
+    File.open(message_file, 'r') do |aFile|
+        aFile.each { |line|
+            next if line =~ /^#/
+            message_content += line
+        }
+
+    end
+
+    # Only comments or only our initial blank line are consitered abort-worthy
+    if not message_content.empty? and message_content != "\n"
+      sh 'curl', "-Flogin=#{github_user}", "-Ftoken=#{github_token}",
+        "-Fmessage[body]=#{message_content}", "-Fmessage[to][]=#{user}",
+        "http://github.com/#{github_user}/#{project}/pull_request/#{branch}"
+      File.unlink(message_file)
+    else
+      puts "Aborted pull-request due to empty message."
+    end
+
+  end
+end
+
 desc "Generate the text for a pull request."
-usage "github pull-request [user] [branch]"
-command :'pull-request' do |user, branch|
+usage "github pull-request-text [user] [branch]"
+command :'pull-request-text' do |user, branch|
   if helper.project
     die "Specify a user for the pull request" if user.nil?
     user, branch = user.split('/', 2) if branch.nil?

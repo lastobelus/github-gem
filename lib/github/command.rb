@@ -90,6 +90,14 @@ module GitHub
       end
     end
 
+    def editor
+        e = git "config core.editor"
+        e = ENV['GIT_EDITOR'] if not e or e.empty?
+        e = ENV['EDITOR']     if not e or e.empty?
+        e = 'vi'              if not e or e.empty?
+        return e
+    end
+
     class Shell < String
       attr_reader :error
       attr_reader :out
