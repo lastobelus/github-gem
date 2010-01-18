@@ -294,6 +294,17 @@ command :'create-from-local' do
   git_exec "push origin master"
 end
 
+desc "Push current local branch to new remote branch"
+command :'push-branch' do
+  branch = helper.current_branch
+  if helper.remote_branch?("origin", branch)
+    die "Remote branch #{branch} already exists" 
+  end
+  git "config branch.#{branch}.remote origin"
+  git "config branch.#{branch}.merge refs/head/#{branch}"
+  git_exec "push origin #{branch}"
+end
+
 desc "Search GitHub for the given repository name."
 usage "github search [query]"
 command :search do |query|
