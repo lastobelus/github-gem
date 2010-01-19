@@ -307,8 +307,8 @@ command :'pull-request' do |user|
       aFile.puts "# --------"
       aFile.puts "#"
 
-      gitcommits = git "rev-list #{branch} --pretty"
-      gitcommits.each { |line|
+      gitcommits = git "log -u origin/master..#{branch}"
+      gitcommits.split(/\n/).each { |line|
           aFile.puts "# #{line}"
       }
     end
