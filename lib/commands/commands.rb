@@ -184,14 +184,14 @@ command :'pull-request' do |user|
         aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
                    "the commit."
         aFile.puts "#"
-        aFile.puts "#"
         aFile.puts "# --------"
         aFile.puts "#"
 
-        gitcommits = git "rev-list #{branch} --pretty"
-        gitcommits.each { |line|
+        gitcommits = git "log -u origin/master..#{branch}"
+        gitcommits.split(/\n/).each { |line|
             aFile.puts "# #{line}"
         }
+
     end
 
     system "#{editor} '#{message_file}'"
