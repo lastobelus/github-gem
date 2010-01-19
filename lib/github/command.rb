@@ -41,11 +41,11 @@ module GitHub
       run :sh, command
     end
 
-    def git_ret(command)
-      if command.is_a? Array
+    def git_ret(*command)
+      if command.size > 1
         system( * ['git'].concat(command) )
       else
-        system('git ' + command)
+        system('git ' + command[0])
       end
       return $?
     end

@@ -89,9 +89,12 @@ command :review do |user, branch|
   die "Specify a user to review" if user.nil?
   user, branch = user.split("/", 2) if branch.nil?
   GitHub.invoke(:fetch_all, user)
-  git "checkout -b review##{user}/#{branch} #{user}/#{branch}"
+  if git_ret("checkout -b review##{user}/#{branch} #{user}/#{branch}") != 0
+    return
+  end
+
   git "checkout master"
-  if git_ret "branch -d review##{user}/#{branch}"
+  if git_ret("branch -d review##{user}/#{branch} 2> /dev/null") == 0
     puts "Branch #{user}/#{branch} is already merged to master. Nothing to do."
     git "checkout #{original_branch}"
   else
@@ -116,7 +119,7 @@ command :'review-pass' do
   end
 
   # Can't use git() as I need the return value
-  if git_ret('merge', branch)
+  if git_ret('merge', branch) != 0
       puts "Got merge conflict."
       puts "Resolve by editing the files then 'git add' them followed " +
            "by a 'git commit' and finally run 'fg' to continue. " +
@@ -189,7 +192,7 @@ command :'review-fail' do
     return;
   end
 
-  if not git_ret('diff', '--quiet', orig_branch)
+  if git_ret('diff', '--quiet', orig_branch) != 0
     puts "Preserving #{branch} as it has local changes. You can delete with: "
     puts "   git branch -D #{branch}"
   else
