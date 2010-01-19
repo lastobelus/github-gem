@@ -41,6 +41,15 @@ module GitHub
       run :sh, command
     end
 
+    def git_ret(command)
+      if command.is_a? Array
+        system( * ['git'].concat(command) )
+      else
+        system('git ' + command)
+      end
+      return $?
+    end
+
     def git_exec(command)
       run :exec, command
     end
