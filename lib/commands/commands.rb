@@ -82,6 +82,123 @@ command :fetch_all do |user|
   git "fetch #{user}"
 end
 
+desc "Review another users branch before merging"
+command :review do |user, branch|
+  original_branch = helper.current_branch
+  user, branch = branch, nil if user.nil?
+  die "Specify a user to review" if user.nil?
+  user, branch = user.split("/", 2) if branch.nil?
+  GitHub.invoke(:fetch_all, user)
+  git "checkout -b review##{user}/#{branch} #{user}/#{branch}"
+  git "checkout master"
+  if git_ret "branch -d review##{user}/#{branch}"
+    puts "Branch #{user}/#{branch} is already merged to master. Nothing to do."
+    git "checkout #{original_branch}"
+  else
+    git "checkout review##{user}/#{branch}"
+  end
+end
+
+desc "Pass review by merging into origin/master"
+command :'review-pass' do
+  branch = helper.current_branch
+
+  branch =~ /^review#/ or
+    die "Must be in a review branch"
+  helper.branch_dirty? and
+    die "Cannot pass review, your current branch has uncommited changes"
+
+  git "checkout master"
+
+  if helper.branch_dirty?
+    git "checkout #{branch}"
+    die "Cannot pass review while master branch is dirty."
+  end
+
+  # Can't use git() as I need the return value
+  if git_ret('merge', branch)
+      puts "Got merge conflict."
+      puts "Resolve by editing the files then 'git add' them followed " +
+           "by a 'git commit' and finally run 'fg' to continue. " +
+           "Or 'fg' without resolving to abort."
+      # Put self to sleep
+      Process.kill('STOP', $$)
+  end
+
+  if helper.branch_dirty?
+    die "Aborting review-pass due to unresolved conflicts (dirty branch)"
+    git "reset --hard"
+    git "checkout #{branch}"
+  end
+
+  # Should be ready.
+  puts "Merged to local master, pushing to origin"
+  puts git "push origin"
+  puts git "branch -d #{branch}"
+  puts "Merged #{branch} to origin/master"
+end
+
+desc "Fail review by sending message"
+command :'review-fail' do
+  branch = helper.current_branch
+
+  branch =~ /^review#/ or
+    die "Must be in a review branch"
+  orig_branch = branch.sub(/^review#/, '')
+  user = branch.scan(/^review#(.*?)\//)
+
+  message_file = (git "rev-parse --git-dir") + "/GitHubFailPullRequestMessage"
+
+  File.open(message_file, 'w') do |aFile|
+    aFile.puts "# To: #{user}"
+    aFile.puts ""
+    aFile.puts "# Please enter the reason you are rejecting this pull-request " +
+               " Lines starting"
+    aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
+               "the commit."
+    aFile.puts "#"
+    aFile.puts "#"
+    aFile.puts "# --------"
+    aFile.puts "#"
+
+    gitcommits = git "log -u origin/master..#{branch}"
+    gitcommits.split(/\n/).each { |line|
+        aFile.puts "# #{line}"
+    }
+  end
+
+  system "#{editor} '#{message_file}'"
+  message_content = ""
+  File.open(message_file, 'r') do |aFile|
+    aFile.each { |line|
+      next if line =~ /^#/
+      message_content += line
+    }
+  end
+
+# Only comments or only our initial blank line are consitered abort-worthy
+  if not message_content.empty? and message_content != "\n"
+    sh 'curl', "-Flogin=#{github_user}", "-Ftoken=#{github_token}",
+      "-Fmessage[body]=#{message_content}", "-Fmessage[to]=#{user}",
+      "-Fmessage[subject]=Reject pull-request for #{orig_branch}",
+      "http://github.com/inbox"
+    puts "Sent github message to #{user}"
+    File.unlink(message_file)
+  else
+    puts "Aborted review-fail due to empty message."
+    return;
+  end
+
+  if not git_ret('diff', '--quiet', orig_branch)
+    puts "Preserving #{branch} as it has local changes. You can delete with: "
+    puts "   git branch -D #{branch}"
+  else
+      git "checkout master"
+      git_exec "branch -D #{branch}"
+  end
+  
+end
+
 desc "Fetch from a remote to a local branch."
 command :fetch do |user, branch|
   die "Specify a user to pull from" if user.nil?
@@ -174,37 +291,38 @@ command :'pull-request' do |user|
     end
     GitHub.invoke(:track, user) unless helper.tracking?(user)
 
-    # Open the editor and have them enter their pull-request message
+# Open the editor and have them enter their pull-request message
     message_file = (git "rev-parse --git-dir") + "/GitHubPullRequestMessage"
 
     File.open(message_file, 'w') do |aFile|
-        aFile.puts ""
-        aFile.puts "# Please enter the pull-request message for your changes." +
-                   " Lines starting"
-        aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
-                   "the commit."
-        aFile.puts "#"
-        aFile.puts "#"
-        aFile.puts "# --------"
-        aFile.puts "#"
+      aFile.puts ""
+      aFile.puts "If using the github-gem, review with: "
+      aFile.puts "   github review #{user}/#{branch}"
+      aFile.puts "# Please enter the pull-request message for your changes." +
+                 " Lines starting"
+      aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
+                 "the commit."
+      aFile.puts "#"
+      aFile.puts "#"
+      aFile.puts "# --------"
+      aFile.puts "#"
 
-        gitcommits = git "rev-list #{branch} --pretty"
-        gitcommits.each { |line|
-            aFile.puts "# #{line}"
-        }
+      gitcommits = git "rev-list #{branch} --pretty"
+      gitcommits.each { |line|
+          aFile.puts "# #{line}"
+      }
     end
 
     system "#{editor} '#{message_file}'"
     message_content = ""
     File.open(message_file, 'r') do |aFile|
-        aFile.each { |line|
-            next if line =~ /^#/
-            message_content += line
-        }
-
+      aFile.each { |line|
+          next if line =~ /^#/
+          message_content += line
+      }
     end
 
-    # Only comments or only our initial blank line are consitered abort-worthy
+# Only comments or only our initial blank line are consitered abort-worthy
     if not message_content.empty? and message_content != "\n"
       sh 'curl', "-Flogin=#{github_user}", "-Ftoken=#{github_token}",
         "-Fmessage[body]=#{message_content}", "-Fmessage[to][]=#{user}",
