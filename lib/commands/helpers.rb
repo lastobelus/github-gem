@@ -175,9 +175,15 @@ end
 # originally, we were going to use git-ls-files but that could only
 # report modified track files...not files that have been staged
 # for committal
+# Dirty is defined as:
+#   Having unstaged files
+#   Having uncommited files (Staged files)
 helper :branch_dirty? do
-  !( system("git diff --quiet 2>#{DEV_NULL}") || 
-    !system("git diff --cached --quiet 2>#{DEV_NULL}")
+  not (
+    # Nothing unstaged
+    system("git diff --quiet 2>#{DEV_NULL}") and 
+    # And nothing staged
+    system("git diff --cached --quiet 2>#{DEV_NULL}")
   )
 end
 
