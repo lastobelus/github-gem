@@ -283,37 +283,40 @@ end
 
 desc "Generate a github pull-request"
 usage "github pull-request [user]"
-command :'pull-request' do |user|
+command :'pull-request' do |*users|
   if helper.project
-    die "Specify a user for the pull request" if user.nil?
+    die "Specify at least one user to send the pull request" if users.length == 0
     branch = helper.current_branch
     project = helper.project
     if helper.branch_dirty_from_remote?
       die "Current branch differs from remote branch of the same name. \n" +
           "Perhaps you wish to \"git push\" or \"github push-branch\" first."
     end
-    GitHub.invoke(:track, user) unless helper.tracking?(user)
+    for user in (users)
+      GitHub.invoke(:track, user) unless helper.tracking?(user)
+    end
 
 # Open the editor and have them enter their pull-request message
     message_file = (git "rev-parse --git-dir") + "/GitHubPullRequestMessage"
 
     File.open(message_file, 'w') do |aFile|
-      aFile.puts ""
-      aFile.puts "If using the github-gem, review with: "
-      aFile.puts "   github review #{github_user}/#{branch}"
-      aFile.puts "# Please enter the pull-request message for your changes." +
-                 " Lines starting"
-      aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
-                 "the commit."
-      aFile.puts "#"
-      aFile.puts "#"
-      aFile.puts "# --------"
-      aFile.puts "#"
+        aFile.puts "# To: " + users.join(', ')
+        aFile.puts ""
+        aFile.puts "If using the github-gem, review with: "
+        aFile.puts "   github review #{github_user}/#{branch}"
+        aFile.puts "# Please enter the pull-request message for your changes." +
+                   " Lines starting"
+        aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
+                   "the commit."
+        aFile.puts "#"
+        aFile.puts "# --------"
+        aFile.puts "#"
 
-      gitcommits = git "log -u origin/master..#{branch}"
-      gitcommits.split(/\n/).each { |line|
-          aFile.puts "# #{line}"
-      }
+        gitcommits = git "log -u origin/master..#{branch}"
+        gitcommits.split(/\n/).each { |line|
+            aFile.puts "# #{line}"
+        }
+
     end
 
     system "#{editor} '#{message_file}'"
@@ -327,9 +330,17 @@ command :'pull-request' do |user|
 
 # Only comments or only our initial blank line are consitered abort-worthy
     if not message_content.empty? and message_content != "\n"
-      sh 'curl', "-Flogin=#{github_user}", "-Ftoken=#{github_token}",
-        "-Fmessage[body]=#{message_content}", "-Fmessage[to][]=#{user}",
+      args = [ 'curl', "-Flogin=#{github_user}", "-Ftoken=#{github_token}",
+               "-Fmessage[body]=#{message_content}" ]
+
+      for user in (users)
+        args.push("-Fmessage[to][]=#{user}")
+      end
+
+      args.push(
         "http://github.com/#{github_user}/#{project}/pull_request/#{branch}"
+        )
+      sh *args
       File.unlink(message_file)
     else
       puts "Aborted pull-request due to empty message."
