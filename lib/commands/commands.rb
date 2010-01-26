@@ -180,7 +180,7 @@ command :'pull-request' do |user|
     File.open(message_file, 'w') do |aFile|
         aFile.puts ""
         aFile.puts "If using the github-gem, review with: "
-        aFile.puts "   github review #{user}/#{branch}"
+        aFile.puts "   github review #{github_user}/#{branch}"
         aFile.puts "# Please enter the pull-request message for your changes." +
                    " Lines starting"
         aFile.puts "# with '#' will be ignored, and an empty message aborts "  +
