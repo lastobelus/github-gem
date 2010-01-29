@@ -7,6 +7,21 @@ helper :user_and_repo_from do |url|
   end
 end
 
+helper :mainline_repo do |*new_mainline|
+    mainline_config = `git config --get-regexp '^remote\..*\.mainline$' true`;
+    mainline_config =~ /^remote\.(.*)\.mainline true/;
+    mainline = $1;
+
+    if not new_mainline.nil? and not new_mainline.empty?
+        system("git config --unset-all remote.#{mainline}.mainline") if mainline
+        system("git config --add remote.#{new_mainline}.mainline true")
+        mainline = new_mainline
+    end
+
+    mainline = "origin" if mainline.nil?
+    return mainline
+end
+
 helper :user_and_repo_for do |remote|
   user_and_repo_from(url_for(remote))
 end
