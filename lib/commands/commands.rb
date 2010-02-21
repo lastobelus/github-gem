@@ -505,6 +505,8 @@ command :upload do |filename, user, repo|
 
   die "Target file does not exist" unless File.size?(filename)
   file = File.new(filename)
+  base_filename = File.basename(filename)
+  
   mime_type = MIME::Types.type_for(filename)[0] || MIME::Types["application/octet-stream"][0]
 
   res = helper.http_get "https://github.com/#{user}/#{repo}/downloads?login=#{github_user}&token=#{github_token}"
@@ -516,18 +518,23 @@ command :upload do |filename, user, repo|
   res = helper.http_post("#{schema}://github.com/#{user}/#{repo}/downloads", {
     :file_size => File.size(filename),
     :content_type => mime_type.simplified,
-    :file_name => filename,
+    :file_name => base_filename,
     :description => '',
     :login => github_user,
     :token => github_token,
   })
   die "Repo not found" if res.class == Net::HTTPNotFound
   data = XmlSimple.xml_in(res.body)
+  
+  if data['errors']
+    die "Error uploading: " + data['errors'].collect { |e| e['error'].join }.join(', ')
+  end
+  
   die "Unable to authorize upload" if data["signature"].nil?
-
+  
   res = helper.http_post_multipart("http://github.s3.amazonaws.com/", {
-    :key => "#{data["prefix"].first}#{filename}",
-    :Filename => filename,
+    :key => "#{data["prefix"].first}#{base_filename}",
+    :Filename => base_filename,
     :policy => data["policy"].first,
     :AWSAccessKeyId => data["accesskeyid"].first,
     :signature => data["signature"].first,
@@ -535,6 +542,6 @@ command :upload do |filename, user, repo|
     :file => file,
     :success_action_status => 201
   })
-  die "File upload failed" unless res.class == Net::HTTPCreated
+  die "File upload failed: #{res.body}" unless res.class == Net::HTTPCreated
   puts "File uploaded successfully"
 end
