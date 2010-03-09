@@ -1,7 +1,9 @@
 desc "Open this repo's master branch in a web browser."
 command :home do |user|
   if helper.project
-    helper.open helper.homepage_for(user || helper.owner, 'master')
+    homepage = helper.homepage_for(user || helper.owner, 'master')
+    homepage.gsub!(%r{/tree/master$}, '')
+    helper.open homepage
   end
 end
 
@@ -449,7 +451,7 @@ command :'create-from-local' do
   repo = File.basename(cwd)
   is_repo = !git("status").match(/fatal/)
   raise "Not a git repository. Use gh create instead" unless is_repo
-  sh  "curl -F 'repository[name]=#{repo}' -F 'repository[public]=#{!options[:private].inspect} -F 'login=#{github_user}' -F 'token=#{github_token}' http://github.com/repositories"
+  sh  "curl -F 'repository[name]=#{repo}' -F 'repository[public]=#{!options[:private].inspect}' -F 'login=#{github_user}' -F 'token=#{github_token}' http://github.com/repositories"
   git "remote add origin git@github.com:#{github_user}/#{repo}.git"
   git_exec "push origin master"
 end
